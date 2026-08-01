@@ -1,9 +1,4 @@
-/* ================================================================
-   EMOTUNE — APP LOGIC
-   Frontend-only simulation: no network calls, no AI. Every "AI"
-   response below is randomly selected from hardcoded content pools
-   so the app feels alive across repeated sessions.
-   ================================================================ */
+
 
 (() => {
   "use strict";
@@ -25,77 +20,6 @@
   ];
 
   const emotionByKey = (key) => EMOTIONS.find((e) => e.key === key);
-
-  // Coaching message templates, filled in after an "analysis".
-  // Kept varied so repeated practice attempts don't feel robotic.
-  const COACHING_TEMPLATES = [
-    ({ target, detected, confidence, secondaryName, secondaryPct, isMatch }) => `
-      <p>${isMatch ? "Nice attempt!" : "Good try!"}</p>
-      <p>Your intended expression was <strong>${target}</strong>. ${
-        isMatch
-          ? `The AI read it as ${detected} too, but only at ${confidence}% confidence.`
-          : `The AI actually read it closer to <strong>${detected}</strong>.`
-      } It also picked up several <strong>${secondaryName}</strong> characteristics, suggesting your expression could be clearer.</p>
-      <p>Try making the ${target.toLowerCase()} expression slightly more pronounced and take another photo.</p>
-      <p class="disclaimer">Remember, this tool is designed for practice and learning. A facial expression classifier estimates how an expression may be perceived — it can't determine how someone truly feels.</p>
-    `,
-    ({ target, detected, confidence, secondaryName, isMatch }) => `
-      <p>${isMatch ? "You're on the right track." : "Interesting result."}</p>
-      <p>The classifier landed on <strong>${detected}</strong> at ${confidence}% confidence for a <strong>${target}</strong> attempt, with a hint of <strong>${secondaryName}</strong> mixed in.</p>
-      <p>A common fix here is to engage more of the face at once — eyes, brows, and mouth together read more clearly than any single feature.</p>
-      <p class="disclaimer">Keep in mind this is a practice estimate, not a judgment of how you actually feel.</p>
-    `,
-    ({ target, confidence, secondaryName, secondaryPct }) => `
-      <p>Solid effort on <strong>${target}</strong>.</p>
-      <p>Confidence came in at ${confidence}%, with ${secondaryPct}% of the read leaning toward <strong>${secondaryName}</strong>. That overlap is normal — a lot of expressions share muscle movement.</p>
-      <p>Exaggerate the expression a touch more than feels natural, hold it for a beat, then snap the next photo.</p>
-      <p class="disclaimer">This tool estimates perceived expression only — it isn't reading your actual emotional state.</p>
-    `,
-    ({ target, detected, confidence, isMatch }) => `
-      <p>${isMatch ? "Getting there." : "Worth another go."}</p>
-      <p>Target was <strong>${target}</strong>, detected as <strong>${detected}</strong> (${confidence}% confidence). ${
-        isMatch
-          ? "The core shape is right — now push the intensity up."
-          : "The overall shape read as something else, so the intensity or which muscles you're using might need adjusting."
-      }</p>
-      <p>Try again in even, front-facing light so the AI has a clean view of your whole face.</p>
-      <p class="disclaimer">A reminder: this is a learning tool, not a lie detector for emotion.</p>
-    `,
-    ({ target, secondaryName, secondaryPct, confidence }) => `
-      <p>Here's your read for <strong>${target}</strong>.</p>
-      <p>Confidence: ${confidence}%. Secondary signal: <strong>${secondaryName}</strong> at ${secondaryPct}%.</p>
-      <p>Small adjustments to your eyes usually move the needle the most — they carry a surprising amount of the signal for most expressions.</p>
-      <p class="disclaimer">Take this as directional feedback for practice, not a precise emotional readout.</p>
-    `,
-  ];
-
-  // Follow-up conversation replies, grouped by rough intent.
-  const REPLY_POOL = {
-    why: [
-      "The classifier weighs the eyes, brows and mouth together. If one area was more neutral than the rest, it can pull the overall read toward a blended result.",
-      "Lighting and angle both affect this — shadows can flatten the muscle detail the model relies on, even when your expression is strong.",
-      "Expressions that share muscle movement (like surprise and fear) often overlap in the model's output, which is likely what happened here.",
-    ],
-    improve: [
-      "Push the intensity slightly past what feels natural — photos tend to compress expressiveness, so a bit of exaggeration reads better on camera.",
-      "Try holding the expression for a second or two before the photo. Micro-expressions fade fast, and a held expression photographs more clearly.",
-      "Bring your eyes into it, not just your mouth. A smile with flat eyes, for example, often gets read as less confident happiness.",
-    ],
-    confidence: [
-      "Confidence reflects how strongly the detected features matched the target expression's typical pattern — higher isn't 'more real,' just a clearer signal.",
-      "A lower confidence score usually means the expression was partially there but blended with another one, rather than being 'wrong.'",
-    ],
-    secondary: [
-      "The secondary emotion is whatever pattern showed up next-most-strongly in the photo. A little bit of overlap is completely normal.",
-      "Think of the secondary reading as background noise in the signal — it doesn't cancel out your main expression, just softens its clarity.",
-    ],
-    fallback: [
-      "Good question — want to try another photo so we can compare the two readings side by side?",
-      "That's part of what practice is for. Feel free to upload another attempt whenever you're ready.",
-      "Fair point. Expression reading is more art than exact science — another attempt often clarifies things.",
-      "Happy to keep exploring this with you. Upload a new photo any time to see how it compares.",
-    ],
-  };
 
   const FAKE_HISTORY = [
     { key: "happy", label: "Happy Practice",  date: "Yesterday",   confidence: 82 },
@@ -344,19 +268,7 @@
      ANALYSIS CARD
   ----------------------------------------------------------- */
   function generateAnalysis(targetEmo) {
-    const isMatch = Math.random() < 0.65;
-    let detected = targetEmo;
-    if (!isMatch) {
-      const others = EMOTIONS.filter((e) => e.key !== targetEmo.key);
-      detected = pick(others);
-    }
-    const confidence = isMatch ? randInt(46, 91) : randInt(34, 58);
 
-    const secondaryOptions = EMOTIONS.filter((e) => e.key !== detected.key);
-    const secondary = pick(secondaryOptions);
-    const secondaryPct = Math.max(12, Math.min(confidence - 6, randInt(15, 42)));
-
-    return { target: targetEmo, detected, confidence, secondary, secondaryPct, isMatch };
   }
 
   function addAnalysisCard(analysis) {
@@ -422,18 +334,6 @@
         const analysis = generateAnalysis(state.current);
         addAnalysisCard(analysis);
 
-        setTimeout(() => {
-          const includeFull = true;
-          const message = pick(COACHING_TEMPLATES)({
-            target: analysis.target.name,
-            detected: analysis.detected.name,
-            confidence: analysis.confidence,
-            secondaryName: analysis.secondary.name,
-            secondaryPct: analysis.secondaryPct,
-            isMatch: analysis.isMatch,
-          });
-          addAssistantText(message);
-        }, 450);
       }, randInt(1700, 2200));
     };
     reader.readAsDataURL(file);
@@ -442,14 +342,6 @@
   /* ----------------------------------------------------------
      TEXT CONVERSATION FLOW
   ----------------------------------------------------------- */
-  function classifyIntent(text) {
-    const t = text.toLowerCase();
-    if (/why|wasn'?t|didn'?t/.test(t)) return "why";
-    if (/improve|better|fix|change|tip/.test(t)) return "improve";
-    if (/confidence|score|percent|%/.test(t)) return "confidence";
-    if (/secondary|neutral|other emotion|blend/.test(t)) return "secondary";
-    return "fallback";
-  }
 
   function handleSend() {
     const text = textInput.value.trim();
