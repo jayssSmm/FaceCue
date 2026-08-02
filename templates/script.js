@@ -3,12 +3,6 @@
 (() => {
   "use strict";
 
-  /* ----------------------------------------------------------
-     DATA
-  ----------------------------------------------------------- */
-
-  // Each emotion owns a CSS custom property pair (defined in style.css)
-  // so badges, buttons and the confidence dial all re-tint together.
   const EMOTIONS = [
     { key: "happy",    name: "Happy",    emoji: "😊", varName: "--happy",    softVarName: "--happy-soft" },
     { key: "sad",      name: "Sad",      emoji: "😢", varName: "--sad",      softVarName: "--sad-soft" },
@@ -20,12 +14,6 @@
   ];
 
   const emotionByKey = (key) => EMOTIONS.find((e) => e.key === key);
-
-  const FAKE_HISTORY = [
-    { key: "happy", label: "Happy Practice",  date: "Yesterday",   confidence: 82 },
-    { key: "sad",   label: "Sad Practice",    date: "2 days ago",  confidence: 64 },
-    { key: "angry", label: "Angry Practice",  date: "Last week",   confidence: 71 },
-  ];
 
   /* ----------------------------------------------------------
      STATE
@@ -59,8 +47,6 @@
   /* ----------------------------------------------------------
      UTILITIES
   ----------------------------------------------------------- */
-  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
   function scrollToBottom() {
     requestAnimationFrame(() => {
@@ -132,29 +118,7 @@
   /* ----------------------------------------------------------
      RENDER: SIDEBAR HISTORY
   ----------------------------------------------------------- */
-  function renderHistoryList() {
-    historyList.innerHTML = "";
-    FAKE_HISTORY.forEach((item) => {
-      const emo = emotionByKey(item.key);
-      const li = document.createElement("li");
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "history-item";
-      btn.dataset.key = item.key;
-      btn.innerHTML = `
-        <span class="history-emoji" aria-hidden="true">${emo.emoji}</span>
-        <span class="history-meta">
-          <span class="history-name">${item.label}</span>
-          <span class="history-date">${item.date}</span>
-        </span>
-        <span class="history-badge">${item.confidence}%</span>
-      `;
-      btn.addEventListener("click", () => loadHistorySession(item));
-      attachRipple(btn);
-      li.appendChild(btn);
-      historyList.appendChild(li);
-    });
-  }
+
 
   function setActiveHistoryItem(key) {
     state.activeHistoryKey = key;
@@ -355,7 +319,6 @@
     setTimeout(() => {
       hideTyping(typingNode);
       const intent = classifyIntent(text);
-      const reply = pick(REPLY_POOL[intent]);
       addAssistantText(`<p>${reply}</p>`);
     }, randInt(900, 1500));
   }
