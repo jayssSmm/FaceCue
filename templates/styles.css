@@ -1,11 +1,3 @@
-/* ================================================================
-   EMOTUNE — STYLESHEET
-   Design tokens: a calm violet/teal brand pair, warm off-white
-   surface, and a per-emotion colour identity (each emotion carries
-   its own hue through badges, cards and the confidence dial — a
-   "tuning" system rather than one flat accent).
-   ================================================================ */
-
 :root {
   /* ---- Brand ---- */
   --brand: #5D3FD3;
