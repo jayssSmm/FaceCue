@@ -1,5 +1,3 @@
-
-
 (() => {
   "use strict";
 
@@ -47,6 +45,7 @@
   /* ----------------------------------------------------------
      UTILITIES
   ----------------------------------------------------------- */
+  const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
   function scrollToBottom() {
     requestAnimationFrame(() => {
@@ -116,27 +115,19 @@
   }
 
   /* ----------------------------------------------------------
-     RENDER: SIDEBAR HISTORY
-  ----------------------------------------------------------- */
-
-
-  function setActiveHistoryItem(key) {
-    state.activeHistoryKey = key;
-    document.querySelectorAll(".history-item").forEach((el) => {
-      el.classList.toggle("is-active", el.dataset.key === key);
-    });
-  }
-
-  /* ----------------------------------------------------------
      SCREEN TRANSITIONS
   ----------------------------------------------------------- */
-  function goToSelect() {
+  function goToSelect(emo) {
     screenPractice.classList.remove("is-active");
+    addAssistantText(`
+        <p>Great choice! Today we're practicing <strong>${emo.name}</strong>.</p>
+        <p>Upload a selfie showing the expression you'd like other people to perceive.</p>
+        <p>When you're ready, press the upload button below.</p>
+      `);
     screenSelect.classList.add("is-active");
-    setActiveHistoryItem(null);
   }
 
-  function startPractice(emo, { fromHistory = false } = {}) {
+  function startPractice(emo) {
     state.current = emo;
     state.hasUploadedThisSession = false;
 
@@ -153,16 +144,6 @@
 
     screenSelect.classList.remove("is-active");
     screenPractice.classList.add("is-active");
-
-    if (!fromHistory) {
-      setActiveHistoryItem(null);
-      addAssistantText(`
-        <p>Great choice! Today we're practicing <strong>${emo.name}</strong>.</p>
-        <p>Upload a selfie showing the expression you'd like other people to perceive.</p>
-        <p>When you're ready, press the upload button below.</p>
-      `);
-      showUploadEmptyState();
-    }
 
     scrollToBottom();
     textInput.focus({ preventScroll: true });
@@ -359,8 +340,8 @@
      EVENT BINDINGS
   ----------------------------------------------------------- */
   function bindEvents() {
-    backBtn.addEventListener("click", goToSelect);
-    newPracticeBtn.addEventListener("click", goToSelect);
+    backBtn.addEventListener("click", ()=>goToSelect(emo));
+    newPracticeBtn.addEventListener("click", ()=>goToSelect(emo));
     attachRipple(backBtn);
     attachRipple(newPracticeBtn);
     attachRipple(uploadBtn);
@@ -387,7 +368,6 @@
   ----------------------------------------------------------- */
   function init() {
     renderEmotionGrid();
-    renderHistoryList();
     bindEvents();
   }
 
