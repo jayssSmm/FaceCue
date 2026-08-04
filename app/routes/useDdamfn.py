@@ -6,7 +6,6 @@ from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
 
 from fastapi import APIRouter, File, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 
 from ddamfn.infer import DDAMFNPredictor
 
@@ -38,16 +37,6 @@ def get_5pt_landmarks(image_rgb: np.ndarray):
     lm = result.face_landmarks[0]
     pts = np.array([[lm[i].x * w, lm[i].y * h] for i in LANDMARK_IDX.values()], dtype=np.float32)
     return pts
-
-# Allow the vanilla JS frontend (served from a different origin/port) to call this API.
-# Tighten allow_origins to your actual frontend URL before deploying to production.
-router.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["POST"],
-    allow_headers=["*"],
-)
-
 
 @router.post("/post/image")
 async def predict_emotion(image: UploadFile = File(...)):
