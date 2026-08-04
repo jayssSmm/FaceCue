@@ -1,6 +1,9 @@
 (() => {
   "use strict";
 
+  /* ----------------------------------------------------------
+     DATA
+  ----------------------------------------------------------- */
   const EMOTIONS = [
     { key: "happy",    name: "Happy",    emoji: "😊", varName: "--happy",    softVarName: "--happy-soft" },
     { key: "sad",      name: "Sad",      emoji: "😢", varName: "--sad",      softVarName: "--sad-soft" },
@@ -11,7 +14,31 @@
     { key: "disgust",  name: "Disgust",  emoji: "🤢", varName: "--disgust",  softVarName: "--disgust-soft" },
   ];
 
-  const emotionByKey = (key) => EMOTIONS.find((e) => e.key === key);
+  // Coaching message templates shown after an analysis card.
+  const COACHING_TEMPLATES = [
+    ({ target, detected, confidence, secondaryName, isMatch }) => `
+      <p>${isMatch ? "Nice attempt!" : "Good try!"}</p>
+      <p>Your intended expression was <strong>${target}</strong>. ${
+        isMatch
+          ? `The AI read it as ${detected} too, but only at ${confidence}% confidence.`
+          : `The AI actually read it closer to <strong>${detected}</strong>.`
+      } It also picked up several <strong>${secondaryName}</strong> characteristics, suggesting your expression could be clearer.</p>
+      <p>Try making the ${target.toLowerCase()} expression slightly more pronounced and take another photo.</p>
+      <p class="disclaimer">Remember, this tool is designed for practice and learning. A facial expression classifier estimates how an expression may be perceived — it can't determine how someone truly feels.</p>
+    `,
+    ({ target, detected, confidence, secondaryName, isMatch }) => `
+      <p>${isMatch ? "You're on the right track." : "Interesting result."}</p>
+      <p>The classifier landed on <strong>${detected}</strong> at ${confidence}% confidence for a <strong>${target}</strong> attempt, with a hint of <strong>${secondaryName}</strong> mixed in.</p>
+      <p>A common fix here is to engage more of the face at once — eyes, brows, and mouth together read more clearly than any single feature.</p>
+      <p class="disclaimer">Keep in mind this is a practice estimate, not a judgment of how you actually feel.</p>
+    `,
+    ({ target, confidence, secondaryName, secondaryPct }) => `
+      <p>Solid effort on <strong>${target}</strong>.</p>
+      <p>Confidence came in at ${confidence}%, with ${secondaryPct}% of the read leaning toward <strong>${secondaryName}</strong>. That overlap is normal — a lot of expressions share muscle movement.</p>
+      <p>Exaggerate the expression a touch more than feels natural, hold it for a beat, then snap the next photo.</p>
+      <p class="disclaimer">This tool estimates perceived expression only — it isn't reading your actual emotional state.</p>
+    `,
+  ];
 
   /* ----------------------------------------------------------
      STATE
@@ -19,7 +46,6 @@
   const state = {
     current: null,
     hasUploadedThisSession: false,
-    activeHistoryKey: null,
   };
 
   /* ----------------------------------------------------------
@@ -30,7 +56,6 @@
   const screenSelect = $("screen-select");
   const screenPractice = $("screen-practice");
   const emotionGrid = $("emotion-grid");
-  const historyList = $("history-list");
   const chatMessages = $("chat-messages");
   const chatScroll = $("chat-scroll");
   const badgeEmoji = $("badge-emoji");
@@ -46,6 +71,7 @@
      UTILITIES
   ----------------------------------------------------------- */
   const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
   function scrollToBottom() {
     requestAnimationFrame(() => {
@@ -67,28 +93,6 @@
       el.appendChild(ripple);
       ripple.addEventListener("animationend", () => ripple.remove());
     });
-  }
-
-  // Generates a small SVG data-URI "photo" so history sessions have
-  // something to display without needing real uploaded images.
-  function placeholderPhoto(emo) {
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="220" height="220">
-        <defs>
-          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="var(${emo.varName})" stop-opacity="0.85"/>
-            <stop offset="1" stop-color="var(${emo.varName})" stop-opacity="0.55"/>
-          </linearGradient>
-        </defs>
-        <rect width="220" height="220" rx="16" fill="#EDEBF6"/>
-        <rect width="220" height="220" rx="16" fill="url(#g)"/>
-        <text x="50%" y="54%" font-size="72" text-anchor="middle" dominant-baseline="middle">${emo.emoji}</text>
-      </svg>`;
-    // Resolve the CSS variable to a concrete colour since data URIs render
-    // outside document style context.
-    const resolved = getComputedStyle(document.documentElement).getPropertyValue(emo.varName).trim() || "#5D3FD3";
-    const finalSvg = svg.replace(new RegExp(`var\\(${emo.varName}\\)`, "g"), resolved);
-    return `data:image/svg+xml;utf8,${encodeURIComponent(finalSvg)}`;
   }
 
   /* ----------------------------------------------------------
@@ -117,16 +121,15 @@
   /* ----------------------------------------------------------
      SCREEN TRANSITIONS
   ----------------------------------------------------------- */
-  function goToSelect(emo) {
+  // Pure "go back to the picker" — no side effects, no arguments.
+  function goToSelect() {
     screenPractice.classList.remove("is-active");
-    addAssistantText(`
-        <p>Great choice! Today we're practicing <strong>${emo.name}</strong>.</p>
-        <p>Upload a selfie showing the expression you'd like other people to perceive.</p>
-        <p>When you're ready, press the upload button below.</p>
-      `);
     screenSelect.classList.add("is-active");
   }
 
+  // Starts a brand-new practice session for the given emotion.
+  // Always shows the "Great choice!" intro — there is no history
+  // branch anymore, so every entry into screen 2 goes through here.
   function startPractice(emo) {
     state.current = emo;
     state.hasUploadedThisSession = false;
@@ -144,6 +147,13 @@
 
     screenSelect.classList.remove("is-active");
     screenPractice.classList.add("is-active");
+
+    addAssistantText(`
+      <p>Great choice! Today we're practicing <strong>${emo.name}</strong>.</p>
+      <p>Upload a selfie showing the expression you'd like other people to perceive.</p>
+      <p>When you're ready, press the upload button below.</p>
+    `);
+    showUploadEmptyState();
 
     scrollToBottom();
     textInput.focus({ preventScroll: true });
@@ -212,8 +222,22 @@
   /* ----------------------------------------------------------
      ANALYSIS CARD
   ----------------------------------------------------------- */
+  // Fake "AI" analysis: randomly decides whether the detected
+  // expression matches the target, then fabricates plausible numbers.
   function generateAnalysis(targetEmo) {
+    const isMatch = Math.random() < 0.65;
+    let detected = targetEmo;
+    if (!isMatch) {
+      const others = EMOTIONS.filter((e) => e.key !== targetEmo.key);
+      detected = pick(others);
+    }
+    const confidence = isMatch ? randInt(46, 91) : randInt(34, 58);
 
+    const secondaryOptions = EMOTIONS.filter((e) => e.key !== detected.key);
+    const secondary = pick(secondaryOptions);
+    const secondaryPct = Math.max(12, Math.min(confidence - 6, randInt(15, 42)));
+
+    return { target: targetEmo, detected, confidence, secondary, secondaryPct, isMatch };
   }
 
   function addAnalysisCard(analysis) {
@@ -265,21 +289,40 @@
      UPLOAD FLOW
   ----------------------------------------------------------- */
   function handleFile(file) {
-    if (!file || !state.current) return;
-    clearUploadEmptyState();
+    if (!file || !state.current) return; //CHECKS IF file exists
+    clearUploadEmptyState(); // remove add image if present
 
-    const reader = new FileReader();
+    const reader = new FileReader(); // reads file
     reader.onload = (e) => {
-      addUserImage(e.target.result);
+      addUserImage(e.target.result); // adds immage to dom
       state.hasUploadedThisSession = true;
 
       const typingNode = showTyping();
-      setTimeout(() => {
-        hideTyping(typingNode);
-        const analysis = generateAnalysis(state.current);
-        addAnalysisCard(analysis);
 
-      }, randInt(1700, 2200));
+      const formData = new FormData();
+      formData.append('image', file); // 'image' = whatever field name your server expects
+
+      fetch('/post/image', {
+        method: 'POST',
+        body: formData,
+        // no Content-Type header — browser sets the correct multipart boundary automatically
+      })
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+          }
+          return res.json();
+        })
+        .then((json) => {
+          hideTyping(typingNode);
+          const analysis = generateAnalysis(json);
+          addAnalysisCard(analysis);
+        })
+        .catch((err) => {
+          hideTyping(typingNode);
+          console.error('Image analysis failed:', err);
+          // e.g. addAssistantText("Something went wrong analyzing that image — try again?");
+        });
     };
     reader.readAsDataURL(file);
   }
@@ -296,52 +339,21 @@
     textInput.value = "";
     sendBtn.disabled = true;
 
-    const typingNode = showTyping();
+    /*const typingNode = showTyping();
     setTimeout(() => {
       hideTyping(typingNode);
       const intent = classifyIntent(text);
+      const reply = pick(REPLY_POOL[intent]);
       addAssistantText(`<p>${reply}</p>`);
-    }, randInt(900, 1500));
-  }
-
-  /* ----------------------------------------------------------
-     HISTORY SESSION LOADING (fake conversations)
-  ----------------------------------------------------------- */
-  function loadHistorySession(item) {
-    const emo = emotionByKey(item.key);
-    startPractice(emo, { fromHistory: true });
-    setActiveHistoryItem(item.key);
-
-    addAssistantText(`
-      <p>Great choice! Today we're practicing <strong>${emo.name}</strong>.</p>
-      <p>Upload a selfie showing the expression you'd like other people to perceive.</p>
-      <p>When you're ready, press the upload button below.</p>
-    `);
-
-    addUserImage(placeholderPhoto(emo));
-
-    const analysis = generateAnalysis(emo);
-    analysis.confidence = item.confidence;
-    addAnalysisCard(analysis);
-
-    const message = pick(COACHING_TEMPLATES)({
-      target: analysis.target.name,
-      detected: analysis.detected.name,
-      confidence: analysis.confidence,
-      secondaryName: analysis.secondary.name,
-      secondaryPct: analysis.secondaryPct,
-      isMatch: analysis.isMatch,
-    });
-    addAssistantText(message);
-    state.hasUploadedThisSession = true;
+    }, randInt(900, 1500));*/
   }
 
   /* ----------------------------------------------------------
      EVENT BINDINGS
   ----------------------------------------------------------- */
   function bindEvents() {
-    backBtn.addEventListener("click", ()=>goToSelect(emo));
-    newPracticeBtn.addEventListener("click", ()=>goToSelect(emo));
+    backBtn.addEventListener("click", goToSelect);
+    newPracticeBtn.addEventListener("click", goToSelect);
     attachRipple(backBtn);
     attachRipple(newPracticeBtn);
     attachRipple(uploadBtn);
