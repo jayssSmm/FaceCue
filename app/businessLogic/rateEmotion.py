@@ -37,7 +37,6 @@ router = APIRouter()
 
 @router.post("/predict")
 async def predict_emotion(image: UploadFile = File(...)):
-    # --- Validate upload ---
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file is not an image")
 
@@ -48,18 +47,14 @@ async def predict_emotion(image: UploadFile = File(...)):
     if img_bgr is None:
         raise HTTPException(status_code=400, detail="Could not decode image — file may be corrupted")
 
-    # --- Landmark detection ---
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     landmarks = get_5pt_landmarks(img_rgb)
     if landmarks is None:
         raise HTTPException(status_code=422, detail="No face detected in the image")
 
-    # --- Align + predict ---
     aligned = predictor.align_face(img_bgr, landmarks)
-    result = predictor.predict(aligned)  # {'label': ..., 'confidence': ..., 'all_probs': {...}}
+    result = predictor.predict(aligned) 
 
-    # all_probs is already the full emotion tensor (softmax output) as a dict of {class: prob}.
-    # Also expose it as a plain ordered list, in case the frontend wants a raw tensor/array.
     ordered_labels = list(result["all_probs"].keys())
     tensor = [result["all_probs"][label] for label in ordered_labels]
 

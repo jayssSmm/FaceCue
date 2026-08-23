@@ -14,32 +14,6 @@
     { key: "disgust",  name: "Disgust",  emoji: "🤢", varName: "--disgust",  softVarName: "--disgust-soft" },
   ];
 
-  // Coaching message templates shown after an analysis card.
-  const COACHING_TEMPLATES = [
-    ({ target, detected, confidence, secondaryName, isMatch }) => `
-      <p>${isMatch ? "Nice attempt!" : "Good try!"}</p>
-      <p>Your intended expression was <strong>${target}</strong>. ${
-        isMatch
-          ? `The AI read it as ${detected} too, but only at ${confidence}% confidence.`
-          : `The AI actually read it closer to <strong>${detected}</strong>.`
-      } It also picked up several <strong>${secondaryName}</strong> characteristics, suggesting your expression could be clearer.</p>
-      <p>Try making the ${target.toLowerCase()} expression slightly more pronounced and take another photo.</p>
-      <p class="disclaimer">Remember, this tool is designed for practice and learning. A facial expression classifier estimates how an expression may be perceived — it can't determine how someone truly feels.</p>
-    `,
-    ({ target, detected, confidence, secondaryName, isMatch }) => `
-      <p>${isMatch ? "You're on the right track." : "Interesting result."}</p>
-      <p>The classifier landed on <strong>${detected}</strong> at ${confidence}% confidence for a <strong>${target}</strong> attempt, with a hint of <strong>${secondaryName}</strong> mixed in.</p>
-      <p>A common fix here is to engage more of the face at once — eyes, brows, and mouth together read more clearly than any single feature.</p>
-      <p class="disclaimer">Keep in mind this is a practice estimate, not a judgment of how you actually feel.</p>
-    `,
-    ({ target, confidence, secondaryName, secondaryPct }) => `
-      <p>Solid effort on <strong>${target}</strong>.</p>
-      <p>Confidence came in at ${confidence}%, with ${secondaryPct}% of the read leaning toward <strong>${secondaryName}</strong>. That overlap is normal — a lot of expressions share muscle movement.</p>
-      <p>Exaggerate the expression a touch more than feels natural, hold it for a beat, then snap the next photo.</p>
-      <p class="disclaimer">This tool estimates perceived expression only — it isn't reading your actual emotional state.</p>
-    `,
-  ];
-
   /* ----------------------------------------------------------
      STATE
   ----------------------------------------------------------- */
@@ -70,13 +44,18 @@
   /* ----------------------------------------------------------
      UTILITIES
   ----------------------------------------------------------- */
-  const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
   function scrollToBottom() {
     requestAnimationFrame(() => {
       chatScroll.scrollTop = chatScroll.scrollHeight;
     });
+  }
+
+  // Escapes text before it's dropped into innerHTML. Anything coming back
+  // from /response is LLM output — treat it as untrusted, never raw HTML.
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
   }
 
   // Small ripple effect for buttons — purely decorative, self-cleaning.
@@ -121,20 +100,15 @@
   /* ----------------------------------------------------------
      SCREEN TRANSITIONS
   ----------------------------------------------------------- */
-  // Pure "go back to the picker" — no side effects, no arguments.
   function goToSelect() {
     screenPractice.classList.remove("is-active");
     screenSelect.classList.add("is-active");
   }
 
-  // Starts a brand-new practice session for the given emotion.
-  // Always shows the "Great choice!" intro — there is no history
-  // branch anymore, so every entry into screen 2 goes through here.
   function startPractice(emo) {
     state.current = emo;
     state.hasUploadedThisSession = false;
 
-    // Tint the whole practice screen to this emotion's identity colour.
     screenPractice.style.setProperty("--current", `var(${emo.varName})`);
     screenPractice.style.setProperty("--current-soft", `var(${emo.softVarName})`);
 
@@ -220,24 +194,64 @@
   }
 
   /* ----------------------------------------------------------
-     ANALYSIS CARD
+     ANALYSIS CARD (now fed entirely by real /post/image data)
   ----------------------------------------------------------- */
-  // Fake "AI" analysis: randomly decides whether the detected
-  // expression matches the target, then fabricates plausible numbers.
-  function generateAnalysis(targetEmo) {
-    const isMatch = Math.random() < 0.65;
-    let detected = targetEmo;
-    if (!isMatch) {
-      const others = EMOTIONS.filter((e) => e.key !== targetEmo.key);
-      detected = pick(others);
+
+  function findEmotion(label) {
+    if (label == null) return null;
+    const norm = String(label).trim().toLowerCase();
+    return (
+      EMOTIONS.find((e) => e.key === norm || e.name.toLowerCase() === norm) || null
+    );
+  }
+
+  function unknownEmotion(rawLabel) {
+    return { key: String(rawLabel), name: String(rawLabel), emoji: "❓" };
+  }
+
+  // DDAMFN confidences/probs are assumed to be 0–1 floats; if a value comes
+  // in already as 0–100 this leaves it alone.
+  function toPercent(value) {
+    const n = Number(value) || 0;
+    return Math.round(n <= 1 ? n * 100 : n);
+  }
+
+  // Builds the {target, detected, confidence, secondary, secondaryPct}
+  // shape addAnalysisCard() renders, straight from the /post/image payload:
+  // { label, confidence, labels, tensor, all_probs }.
+  function buildAnalysis(result, targetEmo) {
+    const detected = findEmotion(result.label) || unknownEmotion(result.label);
+    const confidence = toPercent(result.confidence);
+
+    let secondary = null;
+    let secondaryPct = 0;
+
+    const labels = result.labels;
+    const probs = result.all_probs;
+
+    if (probs && labels && Array.isArray(labels)) {
+      const entries = Array.isArray(probs)
+        ? labels.map((lab, i) => [lab, probs[i]])
+        : Object.entries(probs);
+
+      entries.sort((a, b) => Number(b[1]) - Number(a[1]));
+
+      const secondEntry = entries.find(
+        ([lab]) => String(lab).trim().toLowerCase() !== String(result.label).trim().toLowerCase()
+      );
+
+      if (secondEntry) {
+        secondary = findEmotion(secondEntry[0]) || unknownEmotion(secondEntry[0]);
+        secondaryPct = toPercent(secondEntry[1]);
+      }
     }
-    const confidence = isMatch ? randInt(46, 91) : randInt(34, 58);
 
-    const secondaryOptions = EMOTIONS.filter((e) => e.key !== detected.key);
-    const secondary = pick(secondaryOptions);
-    const secondaryPct = Math.max(12, Math.min(confidence - 6, randInt(15, 42)));
+    if (!secondary) {
+      secondary = EMOTIONS.find((e) => e.key !== detected.key) || EMOTIONS[0];
+      secondaryPct = 0;
+    }
 
-    return { target: targetEmo, detected, confidence, secondary, secondaryPct, isMatch };
+    return { target: targetEmo, detected, confidence, secondary, secondaryPct };
   }
 
   function addAnalysisCard(analysis) {
@@ -285,43 +299,63 @@
     requestAnimationFrame(tick);
   }
 
-  /* ----------------------------------------------------------
-     UPLOAD FLOW
-  ----------------------------------------------------------- */
   function handleFile(file) {
-    if (!file || !state.current) return; //CHECKS IF file exists
-    clearUploadEmptyState(); // remove add image if present
+    if (!file || !state.current) return;
+    clearUploadEmptyState();
 
-    const reader = new FileReader(); // reads file
+    const targetEmo = state.current;
+    const reader = new FileReader();
+
     reader.onload = (e) => {
-      addUserImage(e.target.result); // adds immage to dom
+      addUserImage(e.target.result);
       state.hasUploadedThisSession = true;
 
       const typingNode = showTyping();
 
       const formData = new FormData();
-      formData.append('image', file); // 'image' = whatever field name your server expects
+      formData.append("image", file); // field name expected by /post/image
 
-      fetch('/post/image', {
-        method: 'POST',
+      fetch("/post/image", {
+        method: "POST",
         body: formData,
-        // no Content-Type header — browser sets the correct multipart boundary automatically
+        // no Content-Type header — browser sets the multipart boundary automatically
       })
         .then((res) => {
           if (!res.ok) {
-            throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+            throw new Error(`/post/image failed: ${res.status} ${res.statusText}`);
           }
           return res.json();
         })
-        .then((json) => {
-          hideTyping(typingNode);
-          const analysis = generateAnalysis(json);
-          addAnalysisCard(analysis);
+        .then((analysisResult) => {
+          // analysisResult: { label, confidence, labels, tensor, all_probs }
+          return fetch("/response", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(analysisResult),
+          })
+            .then((res) => {
+              if (!res.ok) {
+                throw new Error(`/response failed: ${res.status} ${res.statusText}`);
+              }
+              return res.json();
+            })
+            .then((responseJson) => {
+              hideTyping(typingNode);
+              addAnalysisCard(buildAnalysis(analysisResult, targetEmo));
+              if (responseJson && responseJson.message) {
+                addAssistantText(`<p>${escapeHtml(responseJson.message)}</p>`);
+              }
+            })
+            .catch((err) => {
+              hideTyping(typingNode);
+              console.error("Response generation failed:", err);
+              addAnalysisCard(buildAnalysis(analysisResult, targetEmo));
+            });
         })
         .catch((err) => {
+          // /post/image itself failed — nothing to show a circle for.
           hideTyping(typingNode);
-          console.error('Image analysis failed:', err);
-          // e.g. addAssistantText("Something went wrong analyzing that image — try again?");
+          console.error("Image analysis failed:", err);
         });
     };
     reader.readAsDataURL(file);
@@ -330,7 +364,6 @@
   /* ----------------------------------------------------------
      TEXT CONVERSATION FLOW
   ----------------------------------------------------------- */
-
   function handleSend() {
     const text = textInput.value.trim();
     if (!text) return;
@@ -338,14 +371,6 @@
     addUserText(text);
     textInput.value = "";
     sendBtn.disabled = true;
-
-    /*const typingNode = showTyping();
-    setTimeout(() => {
-      hideTyping(typingNode);
-      const intent = classifyIntent(text);
-      const reply = pick(REPLY_POOL[intent]);
-      addAssistantText(`<p>${reply}</p>`);
-    }, randInt(900, 1500));*/
   }
 
   /* ----------------------------------------------------------
