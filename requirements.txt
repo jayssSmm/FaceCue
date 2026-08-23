@@ -7,3 +7,5 @@ numpy==2.4.4
 PyJWT
 sqlalchemy
 asyncpg
+uvicorn
+dotenv

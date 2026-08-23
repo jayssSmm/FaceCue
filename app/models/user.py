@@ -1,8 +1,8 @@
-from sqlalchemy.orm import DeclarativeBase
+from app.models.base import Base
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
-class User(DeclarativeBase):
+class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
