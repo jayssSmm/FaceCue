@@ -4,3 +4,5 @@ opencv-python==5.0.0.93
 scikit-image==0.26.0
 mediapipe==1.0.0
 numpy==2.4.4
+PyJWT
+sqlalchemy
