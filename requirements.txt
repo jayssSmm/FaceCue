@@ -6,3 +6,4 @@ mediapipe==1.0.0
 numpy==2.4.4
 PyJWT
 sqlalchemy
+asyncpg
