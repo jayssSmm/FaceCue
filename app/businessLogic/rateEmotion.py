@@ -34,19 +34,7 @@ def get_5pt_landmarks(image_rgb: np.ndarray):
     pts = np.array([[lm[i].x * w, lm[i].y * h] for i in LANDMARK_IDX.values()], dtype=np.float32)
     return pts
 
-
 router = APIRouter()
-
-
-# Allow the vanilla JS frontend (served from a different origin/port) to call this API.
-# Tighten allow_origins to your actual frontend URL before deploying to production.
-router.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["POST"],
-    allow_headers=["*"],
-)
-
 
 @router.post("/predict")
 async def predict_emotion(image: UploadFile = File(...)):
