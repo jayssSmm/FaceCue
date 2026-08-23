@@ -11,13 +11,9 @@ from ddamfn.infer import DDAMFNPredictor
 
 router = APIRouter()
 
-# Path resolution (robust regardless of where uvicorn is launched from)
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root (this file lives in app/)
 WEIGHTS_PATH = os.path.join(BASE_DIR, "ddamfn", "weights", "rafdb.pth")
 LANDMARKER_PATH = os.path.join(BASE_DIR, "face_landmarker.task")
-
-# Load models ONCE at startup, not per-request
 
 predictor = DDAMFNPredictor(WEIGHTS_PATH)
 
@@ -38,18 +34,6 @@ def get_5pt_landmarks(image_rgb: np.ndarray):
     pts = np.array([[lm[i].x * w, lm[i].y * h] for i in LANDMARK_IDX.values()], dtype=np.float32)
     return pts
 
-"""
-Add this near the top of app/routers/<your_router_file>.py (wherever
-predict_emotion lives), and insert the marked line inside the route.
-This won't change behavior — it just tells us whether repeated calls
-to the LIVE server are landing on the same process/thread or not.
-"""
-
-import os
-import threading
-
-# ... existing imports ...
-
 @router.post("/post/image")
 async def predict_emotion(image: UploadFile = File(...)):
     if not image.content_type or not image.content_type.startswith("image/"):
@@ -68,14 +52,6 @@ async def predict_emotion(image: UploadFile = File(...)):
 
     aligned = predictor.align_face(img_bgr, landmarks)
     result = predictor.predict(aligned)
-
-    # --- DIAGNOSTIC LINE: remove after debugging ---
-    print(
-        f"[predict_emotion] pid={os.getpid()} thread={threading.current_thread().name} "
-        f"device={predictor.device} label={result['label']} conf={result['confidence']:.4f} "
-        f"landmarks={landmarks.flatten().tolist()}"
-    )
-    # ------------------------------------------------
 
     ordered_labels = list(result["all_probs"].keys())
     tensor = [result["all_probs"][label] for label in ordered_labels]
