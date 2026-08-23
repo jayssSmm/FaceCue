@@ -2,6 +2,8 @@ from app.JWT.createToken import decode_access_token
 from app.models.user import User
 from fastapi import HTTPException, Depends
 from app.extension import oauth2_scheme
+from app.db_DataHandling.getSession import get_db
+from sqlalchemy.orm import Session
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     payload = decode_access_token(token)
