@@ -197,6 +197,10 @@
      ANALYSIS CARD (now fed entirely by real /post/image data)
   ----------------------------------------------------------- */
 
+  // Maps a raw DDAMFN label string onto our EMOTIONS list (case-insensitive,
+  // matches either `.key` or `.name`). Falls back to a generic entry built
+  // from the raw label if the model's class name doesn't line up with ours,
+  // rather than throwing.
   function findEmotion(label) {
     if (label == null) return null;
     const norm = String(label).trim().toLowerCase();
@@ -219,27 +223,49 @@
   // Builds the {target, detected, confidence, secondary, secondaryPct}
   // shape addAnalysisCard() renders, straight from the /post/image payload:
   // { label, confidence, labels, tensor, all_probs }.
+  //
+  // IMPORTANT: `confidence` (and therefore the circle) is the probability of
+  // the emotion the user was TARGETING, pulled from `all_probs` — not the
+  // model's top-1 confidence. If someone practices "Fear" but the model's
+  // top read is "Happy", a circle showing "90% match" using Happy's score
+  // would be misleading (matching what, exactly?). Instead the circle shows
+  // how much Fear the model actually perceived, however small that is.
+  // `detected` still surfaces the model's true top-1 read as separate,
+  // clearly-labeled context — that information isn't hidden, just no longer
+  // conflated with the match score.
   function buildAnalysis(result, targetEmo) {
     const detected = findEmotion(result.label) || unknownEmotion(result.label);
-    const confidence = toPercent(result.confidence);
-
-    let secondary = null;
-    let secondaryPct = 0;
 
     const labels = result.labels;
     const probs = result.all_probs;
-
+    let entries = [];
     if (probs && labels && Array.isArray(labels)) {
-      const entries = Array.isArray(probs)
+      entries = Array.isArray(probs)
         ? labels.map((lab, i) => [lab, probs[i]])
         : Object.entries(probs);
+    }
 
-      entries.sort((a, b) => Number(b[1]) - Number(a[1]));
+    // Confidence = probability of the TARGET emotion specifically.
+    const targetEntry = entries.find(
+      ([lab]) => String(lab).trim().toLowerCase() === targetEmo.key.toLowerCase()
+        || String(lab).trim().toLowerCase() === targetEmo.name.toLowerCase()
+    );
+    // Fall back to the model's reported top-1 confidence only if we can't
+    // find the target in the distribution at all (e.g. all_probs missing).
+    const confidence = targetEntry ? toPercent(targetEntry[1]) : toPercent(result.confidence);
 
-      const secondEntry = entries.find(
-        ([lab]) => String(lab).trim().toLowerCase() !== String(result.label).trim().toLowerCase()
+    // Secondary = next-highest probability EXCLUDING the target emotion.
+    // When the target isn't the model's top pick, this naturally surfaces
+    // the same class as `detected` — which is the useful, non-misleading
+    // version of that same information.
+    let secondary = null;
+    let secondaryPct = 0;
+    if (entries.length) {
+      const sorted = [...entries].sort((a, b) => Number(b[1]) - Number(a[1]));
+      const secondEntry = sorted.find(
+        ([lab]) => String(lab).trim().toLowerCase() !== targetEmo.key.toLowerCase()
+          && String(lab).trim().toLowerCase() !== targetEmo.name.toLowerCase()
       );
-
       if (secondEntry) {
         secondary = findEmotion(secondEntry[0]) || unknownEmotion(secondEntry[0]);
         secondaryPct = toPercent(secondEntry[1]);
@@ -247,7 +273,7 @@
     }
 
     if (!secondary) {
-      secondary = EMOTIONS.find((e) => e.key !== detected.key) || EMOTIONS[0];
+      secondary = EMOTIONS.find((e) => e.key !== targetEmo.key) || EMOTIONS[0];
       secondaryPct = 0;
     }
 
@@ -299,6 +325,13 @@
     requestAnimationFrame(tick);
   }
 
+  /* ----------------------------------------------------------
+     UPLOAD FLOW
+     /post/image -> DDAMFN result -> /response (LLM) -> message
+     The circle (analysis card) only renders once /response has settled
+     (success OR failure) — never before. On /response failure we still
+     show the circle using the /post/image numbers, just with no message.
+  ----------------------------------------------------------- */
   function handleFile(file) {
     if (!file || !state.current) return;
     clearUploadEmptyState();
@@ -347,6 +380,9 @@
               }
             })
             .catch((err) => {
+              // /response failed (or returned bad JSON) — still show the
+              // circle using the numbers we already have from /post/image,
+              // just without a coaching message underneath it.
               hideTyping(typingNode);
               console.error("Response generation failed:", err);
               addAnalysisCard(buildAnalysis(analysisResult, targetEmo));
