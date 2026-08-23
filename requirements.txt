@@ -9,3 +9,4 @@ sqlalchemy
 asyncpg
 uvicorn
 dotenv
+requests

@@ -13,7 +13,7 @@ router = APIRouter()
 
 # Path resolution (robust regardless of where uvicorn is launched from)
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root (this file lives in app/)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root (this file lives in app/)
 WEIGHTS_PATH = os.path.join(BASE_DIR, "ddamfn", "weights", "rafdb.pth")
 LANDMARKER_PATH = os.path.join(BASE_DIR, "face_landmarker.task")
 
