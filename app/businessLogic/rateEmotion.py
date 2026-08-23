@@ -6,7 +6,6 @@ from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
 
 from fastapi import APIRouter, File, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 
 from ddamfn.infer import DDAMFNPredictor
 
