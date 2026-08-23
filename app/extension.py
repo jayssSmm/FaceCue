@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-in-prod")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
