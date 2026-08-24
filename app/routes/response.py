@@ -1,10 +1,17 @@
 import os
 from fastapi import APIRouter, HTTPException
-from groq import Groq
+from openai import OpenAI
+from dotenv import load_dotenv
+import app.pydantic_inputVerify.responseModel as response
+import traceback
+
+load_dotenv()
 
 router = APIRouter()
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-import app.pydantic_inputVerify.responseModel as response
+client = OpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=os.getenv('GROQ_API_KEY'),
+)
 
 MASTER_PROMPT = """You are a specialist team combining a Speech-Language Pathologist (SLP) 
 who focuses on social-pragmatic communication and a Behavioral Therapist.
@@ -56,12 +63,12 @@ async def generate_response(body: response.ResponseRequest):
             detail=f"Invalid target_emotion '{body.target_emotion}'. "
                    "Must be one of: Neutral, Happy, Sad, Surprise, Fear, Disgust, Angry",
         )
-
+ 
     user_message = build_user_message(body.analysis, body.target_emotion)
-
+ 
     try:
         chat_completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",  # swap to any Groq-hosted model you prefer
+            model="openai/gpt-oss-120b", 
             messages=[
                 {"role": "system", "content": MASTER_PROMPT},
                 {"role": "user", "content": user_message},
@@ -69,9 +76,11 @@ async def generate_response(body: response.ResponseRequest):
             temperature=0.7,
             max_tokens=400,
         )
-
+ 
         message = chat_completion.choices[0].message.content
         return {"message": message}
-
+ 
     except Exception as e:
+        traceback.print_exc()
+        print("ERROR:", str(e))
         raise HTTPException(status_code=500, detail=f"Groq API error: {str(e)}")

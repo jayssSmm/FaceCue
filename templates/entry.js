@@ -34,71 +34,78 @@ import {
   "use strict";
 
   function handleFile(file) {
-    if (!file || !state.current) return;
-    clearUploadEmptyState();
+  if (!file || !state.current) return;
+  clearUploadEmptyState();
 
-    const targetEmo = state.current;
-    const reader = new FileReader();
+  const targetEmo = state.current;   // e.g. "Happy", "Sad", "Surprise" …
+  const reader = new FileReader();
 
-    reader.onload = (e) => {
-      addUserImage(e.target.result);
-      state.hasUploadedThisSession = true;
+  reader.onload = (e) => {
+    addUserImage(e.target.result);
+    state.hasUploadedThisSession = true;
 
-      const typingNode = showTyping();
+    const typingNode = showTyping();
 
-      const formData = new FormData();
-      formData.append("image", file); 
+    const formData = new FormData();
+    formData.append("image", file);
 
-      fetch("/post/image", {
-        method: "POST",
-        body: formData,
+    fetch("/post/image", {
+      method: "POST",
+      body: formData,
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(
+            `/post/image failed: ${res.status} ${res.statusText}`,
+          );
+        }
+        return res.json();
       })
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error(
-              `/post/image failed: ${res.status} ${res.statusText}`,
-            );
-          }
-          return res.json();
+      .then((analysisResult) => {
+        // ── NEW: wrap analysisResult + targetEmo into one payload ──
+        const responsePayload = {
+          analysis: analysisResult,       // { label, confidence, all_probs }
+          target_emotion: targetEmo.name,      // e.g. "Happy"
+        };
+
+        return fetch("/response", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(responsePayload),   // ← was: analysisResult alone
         })
-        .then((analysisResult) => {
-          return fetch("/response", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ analysis: analysisResult, target_emotion: targetEmo }),
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error(
+                `/response failed: ${res.status} ${res.statusText}`,
+              );
+            }
+            return res.json();
           })
-            .then((res) => {
-              if (!res.ok) {
-                throw new Error(
-                  `/response failed: ${res.status} ${res.statusText}`,
-                );
-              }
-              return res.json();
-            })
-            .then((responseJson) => {
-              hideTyping(typingNode);
-              addAnalysisCard(buildAnalysis(analysisResult, targetEmo));
-              if (responseJson && responseJson.message) {
-                addAssistantText(`<p>${escapeHtml(responseJson.message)}</p>`);
-              }
-            })
-            .catch((err) => {
-              // /response failed (or returned bad JSON) — still show the
-              // circle using the numbers we already have from /post/image,
-              // just without a coaching message underneath it.
-              hideTyping(typingNode);
-              console.error("Response generation failed:", err);
-              addAnalysisCard(buildAnalysis(analysisResult, targetEmo));
-            });
-        })
-        .catch((err) => {
-          // /post/image itself failed — nothing to show a circle for.
-          hideTyping(typingNode);
-          console.error("Image analysis failed:", err);
-        });
-    };
-    reader.readAsDataURL(file);
-  }
+          .then((responseJson) => {
+            hideTyping(typingNode);
+            addAnalysisCard(buildAnalysis(analysisResult, targetEmo));
+            if (responseJson && responseJson.message) {
+              addAssistantText(`<p>${escapeHtml(responseJson.message)}</p>`);
+            }
+          })
+          .catch((err) => {
+            // /response failed (or returned bad JSON) — still show the
+            // circle using the numbers we already have from /post/image,
+            // just without a coaching message underneath it.
+            hideTyping(typingNode);
+            console.error("Response generation failed:", err);
+            addAnalysisCard(buildAnalysis(analysisResult, targetEmo));
+          });
+      })
+      .catch((err) => {
+        // /post/image itself failed — nothing to show a circle for.
+        hideTyping(typingNode);
+        console.error("Image analysis failed:", err);
+      });
+  };
+
+  reader.readAsDataURL(file);
+}
 
   function handleSend() {
     const text = textInput.value.trim();
