@@ -13,17 +13,12 @@ import { attachRipple, scrollToBottom, escapeHtml } from "./utilities.js";
     { key: "disgust",  name: "Disgust",  emoji: "🤢", varName: "--disgust",  softVarName: "--disgust-soft" },
   ];
 
-  /* ----------------------------------------------------------
-     STATE
-  ----------------------------------------------------------- */
   const state = {
     current: null,
     hasUploadedThisSession: false,
   };
 
-  /* ----------------------------------------------------------
-     DOM SHORTCUTS
-  ----------------------------------------------------------- */
+
   const $ = (id) => document.getElementById(id);
 
   const screenSelect = $("screen-select");
@@ -40,9 +35,6 @@ import { attachRipple, scrollToBottom, escapeHtml } from "./utilities.js";
   const backBtn = $("back-btn");
   const newPracticeBtn = $("new-practice-btn");
 
-  /* ----------------------------------------------------------
-     RENDER: EMOTION GRID (Screen 1)
-  ----------------------------------------------------------- */
   function renderEmotionGrid() {
     emotionGrid.innerHTML = "";
     EMOTIONS.forEach((emo, i) => {
@@ -63,9 +55,6 @@ import { attachRipple, scrollToBottom, escapeHtml } from "./utilities.js";
     });
   }
 
-  /* ----------------------------------------------------------
-     SCREEN TRANSITIONS
-  ----------------------------------------------------------- */
   function goToSelect() {
     screenPractice.classList.remove("is-active");
     screenSelect.classList.add("is-active");
@@ -99,9 +88,7 @@ import { attachRipple, scrollToBottom, escapeHtml } from "./utilities.js";
     textInput.focus({ preventScroll: true });
   }
 
-  /* ----------------------------------------------------------
-     MESSAGE RENDERING
-  ----------------------------------------------------------- */
+
   function cloneTpl(id) {
     return document.getElementById(id).content.firstElementChild.cloneNode(true);
   }
@@ -159,14 +146,6 @@ import { attachRipple, scrollToBottom, escapeHtml } from "./utilities.js";
     if (el) el.remove();
   }
 
-  /* ----------------------------------------------------------
-     ANALYSIS CARD (now fed entirely by real /post/image data)
-  ----------------------------------------------------------- */
-
-  // Maps a raw DDAMFN label string onto our EMOTIONS list (case-insensitive,
-  // matches either `.key` or `.name`). Falls back to a generic entry built
-  // from the raw label if the model's class name doesn't line up with ours,
-  // rather than throwing.
   function findEmotion(label) {
     if (label == null) return null;
     const norm = String(label).trim().toLowerCase();
@@ -179,26 +158,12 @@ import { attachRipple, scrollToBottom, escapeHtml } from "./utilities.js";
     return { key: String(rawLabel), name: String(rawLabel), emoji: "❓" };
   }
 
-  // DDAMFN confidences/probs are assumed to be 0–1 floats; if a value comes
-  // in already as 0–100 this leaves it alone.
   function toPercent(value) {
     const n = Number(value) || 0;
     return Math.round(n <= 1 ? n * 100 : n);
   }
 
-  // Builds the {target, detected, confidence, secondary, secondaryPct}
-  // shape addAnalysisCard() renders, straight from the /post/image payload:
-  // { label, confidence, labels, tensor, all_probs }.
-  //
-  // IMPORTANT: `confidence` (and therefore the circle) is the probability of
-  // the emotion the user was TARGETING, pulled from `all_probs` — not the
-  // model's top-1 confidence. If someone practices "Fear" but the model's
-  // top read is "Happy", a circle showing "90% match" using Happy's score
-  // would be misleading (matching what, exactly?). Instead the circle shows
-  // how much Fear the model actually perceived, however small that is.
-  // `detected` still surfaces the model's true top-1 read as separate,
-  // clearly-labeled context — that information isn't hidden, just no longer
-  // conflated with the match score.
+
   function buildAnalysis(result, targetEmo) {
     const detected = findEmotion(result.label) || unknownEmotion(result.label);
 
@@ -363,9 +328,6 @@ import { attachRipple, scrollToBottom, escapeHtml } from "./utilities.js";
     reader.readAsDataURL(file);
   }
 
-  /* ----------------------------------------------------------
-     TEXT CONVERSATION FLOW
-  ----------------------------------------------------------- */
   function handleSend() {
     const text = textInput.value.trim();
     if (!text) return;
@@ -375,9 +337,7 @@ import { attachRipple, scrollToBottom, escapeHtml } from "./utilities.js";
     sendBtn.disabled = true;
   }
 
-  /* ----------------------------------------------------------
-     EVENT BINDINGS
-  ----------------------------------------------------------- */
+
   function bindEvents() {
     backBtn.addEventListener("click", goToSelect);
     newPracticeBtn.addEventListener("click", goToSelect);
