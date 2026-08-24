@@ -12,3 +12,4 @@ dotenv
 requests
 python-multipart
 email-validator
+groq

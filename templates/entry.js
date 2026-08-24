@@ -65,7 +65,7 @@ import {
           return fetch("/response", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(analysisResult),
+            body: JSON.stringify({ analysis: analysisResult, target_emotion: targetEmo }),
           })
             .then((res) => {
               if (!res.ok) {
