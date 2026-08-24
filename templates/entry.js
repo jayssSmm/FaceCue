@@ -33,7 +33,7 @@ import {
 (() => {
   "use strict";
 
-  function handleFile(file) {
+function handleFile(file) {
   if (!file || !state.current) return;
   clearUploadEmptyState();
 
@@ -54,6 +54,12 @@ import {
       body: formData,
     })
       .then((res) => {
+        if (res.status === 422) {
+          // Special-case: no face detected in the uploaded image
+          const err = new Error("No face detected");
+          err.noFace = true;
+          throw err;
+        }
         if (!res.ok) {
           throw new Error(
             `/post/image failed: ${res.status} ${res.statusText}`,
@@ -62,16 +68,15 @@ import {
         return res.json();
       })
       .then((analysisResult) => {
-        // ── NEW: wrap analysisResult + targetEmo into one payload ──
         const responsePayload = {
-          analysis: analysisResult,       // { label, confidence, all_probs }
-          target_emotion: targetEmo.name,      // e.g. "Happy"
+          analysis: analysisResult,
+          target_emotion: targetEmo.name,
         };
 
         return fetch("/response", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(responsePayload),   // ← was: analysisResult alone
+          body: JSON.stringify(responsePayload),
         })
           .then((res) => {
             if (!res.ok) {
@@ -89,18 +94,18 @@ import {
             }
           })
           .catch((err) => {
-            // /response failed (or returned bad JSON) — still show the
-            // circle using the numbers we already have from /post/image,
-            // just without a coaching message underneath it.
             hideTyping(typingNode);
             console.error("Response generation failed:", err);
             addAnalysisCard(buildAnalysis(analysisResult, targetEmo));
           });
       })
       .catch((err) => {
-        // /post/image itself failed — nothing to show a circle for.
         hideTyping(typingNode);
-        console.error("Image analysis failed:", err);
+        if (err.noFace) {
+          addAssistantText(`<p>No face detected, please try another picture.</p>`);
+        } else {
+          console.error("Image analysis failed:", err);
+        }
       });
   };
 
