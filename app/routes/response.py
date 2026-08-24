@@ -49,16 +49,21 @@ async def generate_response(body: response.ResponseRequest):
  
     try:
         chat_completion = client.chat.completions.create(
-            model="openai/gpt-oss-120b", 
+            model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": MASTER_PROMPT},
                 {"role": "user", "content": user_message},
             ],
             temperature=0.7,
-            max_tokens=400,
+            max_tokens=1800,
         )
  
         message = chat_completion.choices[0].message.content
+        if not message:
+            finish_reason = chat_completion.choices[0].finish_reason
+            print(f"Empty response. Finish reason: {finish_reason}")
+            return {"message": "Could not generate coaching feedback. Please try again."}
+
         return {"message": message}
  
     except Exception as e:
