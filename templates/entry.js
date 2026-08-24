@@ -3,36 +3,11 @@ import { renderEmotionGrid } from "./src/render.js";
 import {clearUploadEmptyState, cloneTpl, addUserText, addAssistantText, addUserImage, showTyping, hideTyping, showUploadEmptyState} from './src/messageRender.js'
 import { goToSelect, startPractice } from "./src/screenTransion.js";
 import { findEmotion, unknownEmotion, toPercent, buildAnalysis, addAnalysisCard, animateCount } from "./src/analysisCard.js";
-import { state, $ } from "./state.js";
+import { state, $, EMOTIONS } from "./state.js";
+import { emotionGrid, fileInput, uploadBtn, textInput, sendBtn, backBtn, newPracticeBtn } from "./state.js";
 
 (() => {
   "use strict";
-
-  const EMOTIONS = [
-    { key: "happy",    name: "Happy",    emoji: "😊", varName: "--happy",    softVarName: "--happy-soft" },
-    { key: "sad",      name: "Sad",      emoji: "😢", varName: "--sad",      softVarName: "--sad-soft" },
-    { key: "angry",    name: "Angry",    emoji: "😠", varName: "--angry",    softVarName: "--angry-soft" },
-    { key: "fear",     name: "Fear",     emoji: "😨", varName: "--fear",     softVarName: "--fear-soft" },
-    { key: "surprise", name: "Surprise", emoji: "😲", varName: "--surprise", softVarName: "--surprise-soft" },
-    { key: "neutral",  name: "Neutral",  emoji: "😐", varName: "--neutral",  softVarName: "--neutral-soft" },
-    { key: "disgust",  name: "Disgust",  emoji: "🤢", varName: "--disgust",  softVarName: "--disgust-soft" },
-  ];
-
-  const $ = (id) => document.getElementById(id);
-
-  const screenSelect = $("screen-select");
-  const screenPractice = $("screen-practice");
-  const emotionGrid = $("emotion-grid");
-  const chatMessages = $("chat-messages");
-  const chatScroll = $("chat-scroll");
-  const badgeEmoji = $("badge-emoji");
-  const badgeName = $("badge-name");
-  const fileInput = $("file-input");
-  const uploadBtn = $("upload-btn");
-  const textInput = $("text-input");
-  const sendBtn = $("send-btn");
-  const backBtn = $("back-btn");
-  const newPracticeBtn = $("new-practice-btn");
 
 
   function handleFile(file) {
