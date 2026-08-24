@@ -1,14 +1,37 @@
 import { attachRipple, scrollToBottom, escapeHtml } from "./src/utilities.js";
 import { renderEmotionGrid } from "./src/render.js";
-import {clearUploadEmptyState, cloneTpl, addUserText, addAssistantText, addUserImage, showTyping, hideTyping, showUploadEmptyState} from './src/messageRender.js'
+import {
+  clearUploadEmptyState,
+  cloneTpl,
+  addUserText,
+  addAssistantText,
+  addUserImage,
+  showTyping,
+  hideTyping,
+  showUploadEmptyState,
+} from "./src/messageRender.js";
 import { goToSelect, startPractice } from "./src/screenTransion.js";
-import { findEmotion, unknownEmotion, toPercent, buildAnalysis, addAnalysisCard, animateCount } from "./src/analysisCard.js";
+import {
+  findEmotion,
+  unknownEmotion,
+  toPercent,
+  buildAnalysis,
+  addAnalysisCard,
+  animateCount,
+} from "./src/analysisCard.js";
 import { state, $, EMOTIONS } from "./state.js";
-import { emotionGrid, fileInput, uploadBtn, textInput, sendBtn, backBtn, newPracticeBtn } from "./state.js";
+import {
+  emotionGrid,
+  fileInput,
+  uploadBtn,
+  textInput,
+  sendBtn,
+  backBtn,
+  newPracticeBtn,
+} from "./state.js";
 
 (() => {
   "use strict";
-
 
   function handleFile(file) {
     if (!file || !state.current) return;
@@ -24,21 +47,21 @@ import { emotionGrid, fileInput, uploadBtn, textInput, sendBtn, backBtn, newPrac
       const typingNode = showTyping();
 
       const formData = new FormData();
-      formData.append("image", file); // field name expected by /post/image
+      formData.append("image", file); 
 
       fetch("/post/image", {
         method: "POST",
         body: formData,
-        // no Content-Type header — browser sets the multipart boundary automatically
       })
         .then((res) => {
           if (!res.ok) {
-            throw new Error(`/post/image failed: ${res.status} ${res.statusText}`);
+            throw new Error(
+              `/post/image failed: ${res.status} ${res.statusText}`,
+            );
           }
           return res.json();
         })
         .then((analysisResult) => {
-          // analysisResult: { label, confidence, labels, tensor, all_probs }
           return fetch("/response", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -46,7 +69,9 @@ import { emotionGrid, fileInput, uploadBtn, textInput, sendBtn, backBtn, newPrac
           })
             .then((res) => {
               if (!res.ok) {
-                throw new Error(`/response failed: ${res.status} ${res.statusText}`);
+                throw new Error(
+                  `/response failed: ${res.status} ${res.statusText}`,
+                );
               }
               return res.json();
             })
@@ -84,7 +109,6 @@ import { emotionGrid, fileInput, uploadBtn, textInput, sendBtn, backBtn, newPrac
     sendBtn.disabled = true;
   }
 
-
   function bindEvents() {
     backBtn.addEventListener("click", goToSelect);
     newPracticeBtn.addEventListener("click", goToSelect);
@@ -110,8 +134,8 @@ import { emotionGrid, fileInput, uploadBtn, textInput, sendBtn, backBtn, newPrac
   }
 
   /* ----------------------------------------------------------
-     INIT
-  ----------------------------------------------------------- */
+INIT
+----------------------------------------------------------- */
   function init() {
     renderEmotionGrid(EMOTIONS);
     bindEvents();
