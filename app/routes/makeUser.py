@@ -7,7 +7,6 @@ from app.pydantic_inputVerify.auth_inputCheck import SignupRequest, LoginRequest
 from app.pydantic_inputVerify.google_inputCheck import GoogleLoginRequest, TokenResponse
 from app.PasswdHandling.hashPasswd import hash_password, verify_password
 from app.JWT.createToken import create_access_token
-from app.db_DataHandling.getUser import get_current_user
 from app.db_DataHandling.getSession import get_db
 from sqlalchemy.orm import Session
 
@@ -93,6 +92,3 @@ def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
     return TokenResponse(access_token=token)
 
 
-@router.get("/users/me", response_model=UserOut)
-def read_current_user(current_user: User = Depends(get_current_user)):
-    return current_user
