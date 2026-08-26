@@ -58,6 +58,9 @@ def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
         )
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google token")
+    
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
 
     # idinfo contains: sub, email, email_verified, name, picture, etc.
     if not idinfo.get("email_verified", False):
@@ -90,5 +93,3 @@ def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
 
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(access_token=token)
-
-
