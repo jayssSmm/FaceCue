@@ -28,3 +28,5 @@ scikit-learn
 scipy
 
 pytest
+
+requests
