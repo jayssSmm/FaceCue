@@ -7,7 +7,7 @@ sqlalchemy
 asyncpg
 
 pydantic
-dotenv
+python-dotenv
 email-validator
 
 python-jose
@@ -17,8 +17,6 @@ google-auth
 
 groq
 
-torch
-torchvision
 numpy
 opencv-contrib-python
 mediapipe
