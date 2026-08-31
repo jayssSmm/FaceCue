@@ -29,4 +29,3 @@ scipy
 pytest
 
 requests
-jwt
