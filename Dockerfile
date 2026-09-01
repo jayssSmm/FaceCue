@@ -4,7 +4,8 @@ FROM python:${PYTHON_VERSION}-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    MPLCONFIGDIR=/tmp/matplotlib
 
 WORKDIR /app
 
@@ -26,12 +27,17 @@ RUN adduser \
     --uid "${UID}" \
     appuser
 
+# CPU-only torch, installed separately so it never resolves against
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip install torch --index-url https://download.pytorch.org/whl/cpu
+
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
-    pip install --upgrade pip && pip install -r requirements.txt
+    pip install -r requirements.txt
 
 USER appuser
 COPY . .
 
 EXPOSE 8000
-CMD ["sh", "-c", "uvicorn wsgi:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
