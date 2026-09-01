@@ -33,6 +33,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install torch --index-url https://download.pytorch.org/whl/cpu
 
 RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     pip install -r requirements.txt
 
