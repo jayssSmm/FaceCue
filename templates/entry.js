@@ -149,7 +149,6 @@ function handleFile(file) {
 INIT
 ----------------------------------------------------------- */
   function init() {
-    requireAuth();
     renderEmotionGrid(EMOTIONS);
     bindEvents();
   }
