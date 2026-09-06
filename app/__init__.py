@@ -6,6 +6,9 @@ from app.routes.getUser import router as get_user_router
 from app.routes.ping import router as ping
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def create_app():
     app = FastAPI()
