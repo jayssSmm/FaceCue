@@ -9,6 +9,8 @@ from fastapi import APIRouter, File, UploadFile, HTTPException
 
 from ddamfn.infer import DDAMFNPredictor
 
+from app.psUtil.get_memory_db import get_memory_mb
+
 router = APIRouter()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root (this file lives in app/)
@@ -25,6 +27,7 @@ LANDMARK_IDX = {"left_eye": 33, "right_eye": 263, "nose": 1, "mouth_left": 61, "
 
 
 def get_5pt_landmarks(image_rgb: np.ndarray):
+    print(f"[LOADING LANDMARK] {get_memory_mb():.1f} MB")
     h, w = image_rgb.shape[:2]
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
     result = landmarker.detect(mp_image)
@@ -36,6 +39,7 @@ def get_5pt_landmarks(image_rgb: np.ndarray):
 
 @router.post("/post/image")
 async def predict_emotion(image: UploadFile = File(...)):
+    print(f"[START] {get_memory_mb():.1f} MB")
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file is not an image")
 
@@ -44,6 +48,8 @@ async def predict_emotion(image: UploadFile = File(...)):
     img_bgr = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
     if img_bgr is None:
         raise HTTPException(status_code=400, detail="Could not decode image — file may be corrupted")
+
+    print(f"[AFTER DECODING] {get_memory_mb():.1f} MB")
 
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     landmarks = get_5pt_landmarks(img_rgb)
@@ -55,6 +61,8 @@ async def predict_emotion(image: UploadFile = File(...)):
 
     ordered_labels = list(result["all_probs"].keys())
     tensor = [result["all_probs"][label] for label in ordered_labels]
+
+    print(f"[AFTER INFERENCE] {get_memory_mb():.1f} MB")
 
     return {
         "label": result["label"],

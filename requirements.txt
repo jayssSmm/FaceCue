@@ -25,3 +25,4 @@ matplotlib
 requests
 httpx
 numpy
+cloudinary
