@@ -26,3 +26,4 @@ requests
 httpx
 numpy
 cloudinary
+psutil
