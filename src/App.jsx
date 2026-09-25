@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { EMOTIONS } from './data/emotions';
 import { analyzeImage, generateFeedback } from './services/api';
 import ParticleBackground from './components/ParticleBackground';
+import FaceCueLogo from './components/FaceCueLogo';
+import CameraCapture from './components/CameraCapture';
+import { getSessionProgress, saveEmotionProbabilities } from './utils/sessionProgress';
 
 const emptyResult = {
   label: '',
@@ -26,6 +29,22 @@ function getTheme(emotion) {
 function emotionKeyFromLabel(label) {
   const match = EMOTIONS.find((emotion) => emotion.name.toLowerCase() === label?.toLowerCase());
   return match?.key || 'neutral';
+}
+
+function getEmotionProbability(allProbs, emotion) {
+  const entry = Object.entries(allProbs || {}).find(([label]) => {
+    const normalizedLabel = label.toLowerCase();
+    return normalizedLabel === emotion.key || normalizedLabel === emotion.name.toLowerCase();
+  });
+  const probability = Number(entry?.[1]);
+  return Number.isFinite(probability) ? probability * 100 : null;
+}
+
+function getEmotionScores(allProbs) {
+  return EMOTIONS.reduce((emotionScores, emotion) => {
+    emotionScores[emotion.key] = getEmotionProbability(allProbs, emotion);
+    return emotionScores;
+  }, {});
 }
 
 const EMOJI_BURST_PARTICLES = [
@@ -87,6 +106,63 @@ function FaceCueVisual({ emotion, compact = false }) {
   );
 }
 
+function EmotionProgress({ sessionProgress, probabilitySnapshot, selectedEmotion }) {
+  return (
+    <section className="session-progress" aria-labelledby="session-progress-title">
+      <div className="session-progress-header">
+        <h3 id="session-progress-title">Session progress</h3>
+        <span>All emotions</span>
+      </div>
+      <ul className="session-progress-list">
+        {EMOTIONS.map((emotion) => {
+          const storedEmotion = sessionProgress[emotion.key];
+          const storedAttempts = Array.isArray(storedEmotion?.attempts) ? storedEmotion.attempts : [];
+          const storedScore = Number(storedEmotion?.current ?? storedAttempts[storedAttempts.length - 1] ?? 0);
+          const score = Number.isFinite(storedScore) ? storedScore : 0;
+          const previousScore = probabilitySnapshot?.previous?.[emotion.key];
+          const hasPreviousScore = Number.isFinite(previousScore);
+          const delta = hasPreviousScore ? score - previousScore : null;
+          const theme = getTheme(emotion);
+
+          return (
+            <li
+              key={emotion.key}
+              className={selectedEmotion.key === emotion.key ? 'session-progress-row selected' : 'session-progress-row'}
+              style={{ '--progress-accent': theme.accent, '--progress-glow': theme.glow }}
+            >
+              <div className="session-progress-label">
+                <span aria-hidden="true">{emotion.emoji}</span>
+                <span>{emotion.name}</span>
+              </div>
+              <div
+                className="session-progress-track"
+                role="progressbar"
+                aria-label={`${emotion.name} emotion score: ${score.toFixed(1)} percent`}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={score}
+              >
+                <span
+                  className="session-progress-fill"
+                  style={{ width: `${score}%`, '--progress-start': hasPreviousScore ? previousScore / 100 : 0 }}
+                />
+              </div>
+              <div className="session-progress-value">
+                <strong>{score.toFixed(1)}%</strong>
+                {hasPreviousScore && (
+                  <small className={delta < 0 ? 'negative-delta' : ''}>
+                    {delta > 0 ? '+' : delta < 0 ? '-' : ''}{Math.abs(delta).toFixed(1)} pts
+                  </small>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function App() {
   const [selectedEmotion, setSelectedEmotion] = useState(EMOTIONS[0]);
   const [imageFile, setImageFile] = useState(null);
@@ -97,7 +173,10 @@ function App() {
   const [error, setError] = useState('');
   const [step, setStep] = useState('home');
   const [dragActive, setDragActive] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [probabilitySnapshot, setProbabilitySnapshot] = useState(null);
+  const [sessionProgress, setSessionProgress] = useState(() => getSessionProgress());
   const [pointerOffset, setPointerOffset] = useState({ x: 0, y: 0 });
   const [reducedMotion, setReducedMotion] = useState(false);
   const fileInputRef = useRef(null);
@@ -159,8 +238,18 @@ function App() {
     };
   }, [reducedMotion, step]);
 
+  useEffect(() => {
+    if (step !== 'practice') {
+      setIsCameraOpen(false);
+    }
+  }, [step]);
+
   const probabilityRows = useMemo(() => {
-    return Object.entries(result.all_probs || {}).sort((a, b) => b[1] - a[1]);
+    const scores = getEmotionScores(result.all_probs);
+    return EMOTIONS
+      .map((emotion) => ({ emotion, score: scores[emotion.key] }))
+      .filter(({ score }) => score !== null)
+      .sort((a, b) => b.score - a.score);
   }, [result]);
 
   const activeTheme = getTheme(selectedEmotion);
@@ -185,7 +274,11 @@ function App() {
 
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+    setResult(emptyResult);
+    setProbabilitySnapshot(null);
+    setFeedback('');
     setError('');
+    setIsProcessing(false);
   }
 
   function handleFileChange(event) {
@@ -215,6 +308,21 @@ function App() {
     assignImage(file);
   }
 
+  function openCamera() {
+    setError('');
+    setIsCameraOpen(true);
+  }
+
+  function handleCameraCapture(file) {
+    assignImage(file);
+    setIsCameraOpen(false);
+  }
+
+  function handleCameraError(message) {
+    setError(message);
+    setIsCameraOpen(false);
+  }
+
   async function handleSubmit() {
     if (!imageFile) {
       setError('Please upload a photo before analyzing your expression.');
@@ -228,7 +336,11 @@ function App() {
     try {
       const analysis = await analyzeImage(imageFile);
       const response = await generateFeedback(analysis, selectedEmotion.name);
+      const scores = getEmotionScores(analysis.all_probs);
+      const snapshot = saveEmotionProbabilities(scores);
       setResult(analysis);
+      setProbabilitySnapshot(snapshot);
+      setSessionProgress(getSessionProgress());
       setFeedback(response.message || '');
       setStep('result');
     } catch (err) {
@@ -248,6 +360,7 @@ function App() {
     setImageFile(null);
     setImagePreview('');
     setResult(emptyResult);
+    setProbabilitySnapshot(null);
     setFeedback('');
     setError('');
     setIsProcessing(false);
@@ -258,6 +371,7 @@ function App() {
     setImageFile(null);
     setImagePreview('');
     setResult(emptyResult);
+    setProbabilitySnapshot(null);
     setFeedback('');
     setError('');
     setIsProcessing(false);
@@ -276,10 +390,7 @@ function App() {
 
       <header className="topbar">
         <button type="button" className="brand-button" onClick={() => setStep('home')}>
-          <span className="brand-mark" aria-hidden="true">
-            <span />
-            <span />
-          </span>
+          <FaceCueLogo />
           <span>FaceCue</span>
         </button>
 
@@ -412,8 +523,11 @@ function App() {
             </div>
 
             <div className="preview-modal-content">
-              <div className="preview-modal-visual">
-                <FaceCueVisual emotion={selectedEmotion} />
+              <div className="preview-modal-visual preview-emotion-visual">
+                <div className="preview-emotion-face">
+                  <FaceCueVisual emotion={selectedEmotion} />
+                </div>
+                <span className="preview-emotion-name">{selectedEmotion.name}</span>
               </div>
 
               <div className="preview-copy-block">
@@ -458,12 +572,26 @@ function App() {
             <p className="panel-subtitle">Show your expression and submit it for analysis.</p>
 
             <div className="upload-box">
-              {imagePreview ? (
+              <input
+                id="photo-upload"
+                ref={fileInputRef}
+                className="upload-file-input"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                aria-label="Upload an image to analyze"
+              />
+              {isCameraOpen ? (
+                <CameraCapture onCapture={handleCameraCapture} onCancel={() => setIsCameraOpen(false)} onError={handleCameraError} />
+              ) : imagePreview ? (
                 <div className="image-preview-wrap">
                   <img src={imagePreview} alt="Selected expression preview" className="image-preview" />
                   <div className="image-actions">
                     <button type="button" className="secondary-button" onClick={() => fileInputRef.current?.click()}>
                       Replace Image
+                    </button>
+                    <button type="button" className="secondary-button" onClick={openCamera}>
+                      Use Camera
                     </button>
                     <button
                       type="button"
@@ -479,38 +607,40 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <label
-                  className={`upload-dropzone ${dragActive ? 'drag-active' : ''}`}
-                  htmlFor="photo-upload"
+                <div
+                  className={`upload-dropzone image-source-dropzone ${dragActive ? 'drag-active' : ''}`}
                   onDragOver={handleDragOver}
                   onDragEnter={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
-                  <input
-                    id="photo-upload"
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    aria-label="Upload an image to analyze"
-                  />
                   <span className="upload-icon" aria-hidden="true">
                     <span />
                     <span />
                     <span />
                   </span>
-                  <span className="upload-title">Drop your expression here</span>
-                  <span className="upload-caption">or choose an image from your device.</span>
-                  <span className="upload-action">Choose image</span>
-                </label>
+                  <span className="upload-title">Add your expression</span>
+                  <span className="upload-caption">Choose a saved photo from your device or take a new one with your camera.</span>
+                  <div className="source-choice-group">
+                    <button type="button" className="secondary-button source-choice-button" onClick={() => fileInputRef.current?.click()}>
+                      Choose Image
+                    </button>
+                    <span className="source-choice-or">or</span>
+                    <button type="button" className="secondary-button source-choice-button" onClick={openCamera}>
+                      Use Camera
+                    </button>
+                  </div>
+                  <span className="source-drop-hint">You can also drop an image here.</span>
+                </div>
               )}
             </div>
 
             {isProcessing && (
               <div className="loading-state" aria-live="polite">
-                <FaceCueVisual emotion={selectedEmotion} compact />
-                <div>
+                <div className="analysis-visual">
+                  <FaceCueVisual emotion={selectedEmotion} compact />
+                </div>
+                <div className="analysis-copy">
                   <strong>FaceCue is reading your expression...</strong>
                   <p>Scanning the face and comparing it to your target emotion.</p>
                 </div>
@@ -527,6 +657,12 @@ function App() {
             >
               {isProcessing ? 'Analyzing your expression...' : `Analyze ${selectedEmotion.name}`}
             </button>
+
+            <EmotionProgress
+              sessionProgress={sessionProgress}
+              probabilitySnapshot={probabilitySnapshot}
+              selectedEmotion={selectedEmotion}
+            />
           </section>
         </main>
       )}
@@ -569,15 +705,44 @@ function App() {
               <div className="breakdown-box">
                 <h3>Probability breakdown</h3>
                 <ul className="probability-list">
-                  {probabilityRows.map(([emotion, probability]) => (
-                    <li key={emotion}>
-                      <span>{emotion}</span>
-                      <div className="probability-bar-track" aria-hidden="true">
-                        <span className="probability-bar" style={{ width: `${Math.max(probability * 100, 4)}%` }} />
-                      </div>
-                      <strong>{(probability * 100).toFixed(1)}%</strong>
-                    </li>
-                  ))}
+                  {probabilityRows.map(({ emotion, score }) => {
+                    const previousScore = probabilitySnapshot?.previous?.[emotion.key];
+                    const hasPreviousScore = Number.isFinite(previousScore);
+                    const delta = hasPreviousScore ? score - previousScore : null;
+                    const theme = getTheme(emotion);
+
+                    return (
+                      <li key={emotion.key} className={selectedEmotion.key === emotion.key ? 'selected-probability' : ''}>
+                        <span>{emotion.name}</span>
+                        <div
+                          className="probability-bar-track"
+                          role="progressbar"
+                          aria-label={`${emotion.name} probability`}
+                          aria-valuemin="0"
+                          aria-valuemax="100"
+                          aria-valuenow={score}
+                        >
+                          <span
+                            className="probability-bar"
+                            style={{
+                              width: `${Math.max(score, 0)}%`,
+                              '--bar-start': hasPreviousScore ? previousScore / 100 : 0,
+                              '--result-accent': theme.accent,
+                              '--result-glow': theme.glow,
+                            }}
+                          />
+                        </div>
+                        <div className="probability-value">
+                          <strong>{score.toFixed(1)}%</strong>
+                          {hasPreviousScore && (
+                            <small className={delta < 0 ? 'negative-delta' : ''}>
+                              {delta > 0 ? '+' : delta < 0 ? '-' : ''}{Math.abs(delta).toFixed(1)} pts
+                            </small>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>
@@ -608,10 +773,7 @@ function App() {
         <div className="footer-inner">
           <div className="footer-brand-block">
             <div className="brand-button footer-brand" aria-label="FaceCue home">
-              <span className="brand-mark" aria-hidden="true">
-                <span />
-                <span />
-              </span>
+              <FaceCueLogo />
               <span>FaceCue</span>
             </div>
             <p>Practice facial expressions, explore emotional cues, and learn from AI-generated feedback.</p>
