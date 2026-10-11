@@ -27,3 +27,4 @@ httpx
 numpy
 cloudinary
 psutil
+greenlet
