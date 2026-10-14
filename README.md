@@ -41,22 +41,44 @@ Many people want to understand how expressions are interpreted, but most tools o
   <img src="./screenshot/Tech-Stack.png" alt="FaceCue tech stack diagram" width="760" />
 </p>
 
-| **Frontend** | **Backend** |
-|---|---|
-| React | Python |
-| Vite | FastAPI |
-| JavaScript | Uvicorn |
-| CSS | SQLAlchemy |
-| Browser Camera API | PostgreSQL-compatible async database support |
-| sessionStorage for temporary session tracking | JWT + bcrypt-based authentication flow |
-| **AI and Vision** | **AI Feedback** |
-| PyTorch | Groq API |
-| TorchVision | OpenAI-compatible client patterns |
-| OpenCV | HTTP-based integration for coaching responses |
-| MediaPipe Face Landmarker | |
-| scikit-image | |
-| NumPy | |
-| DDAMFN++ emotion classification model | |
+<div align="center">
+
+<table width="760">
+  <thead>
+    <tr>
+      <th width="380">Frontend</th>
+      <th width="380">Backend</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td align="left">React</td><td align="left">Python</td></tr>
+    <tr><td align="left">Vite</td><td align="left">FastAPI</td></tr>
+    <tr><td align="left">JavaScript</td><td align="left">Uvicorn</td></tr>
+    <tr><td align="left">CSS</td><td align="left">SQLAlchemy</td></tr>
+    <tr><td align="left">Browser Camera API</td><td align="left">PostgreSQL-compatible async database support</td></tr>
+    <tr><td align="left">sessionStorage for temporary session tracking</td><td align="left">JWT + bcrypt-based authentication flow</td></tr>
+  </tbody>
+</table>
+
+<table width="760">
+  <thead>
+    <tr>
+      <th width="380">AI and Vision</th>
+      <th width="380">AI Feedback</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td align="left">PyTorch</td><td align="left">Groq API</td></tr>
+    <tr><td align="left">TorchVision</td><td align="left">OpenAI-compatible client patterns</td></tr>
+    <tr><td align="left">OpenCV</td><td align="left">HTTP-based integration for coaching responses</td></tr>
+    <tr><td align="left">MediaPipe Face Landmarker</td><td align="left"></td></tr>
+    <tr><td align="left">scikit-image</td><td align="left"></td></tr>
+    <tr><td align="left">NumPy</td><td align="left"></td></tr>
+    <tr><td align="left">DDAMFN++ emotion classification model</td><td align="left"></td></tr>
+  </tbody>
+</table>
+
+</div>
 
 ## Quick Start
 
