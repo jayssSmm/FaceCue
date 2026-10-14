@@ -41,7 +41,7 @@ Many people want to understand how expressions are interpreted, but most tools o
   <img src="./screenshot/Tech-Stack.png" alt="FaceCue tech stack diagram" width="760" />
 </p>
 
-| Frontend | Backend |
+| **Frontend** | **Backend** |
 |---|---|
 | React | Python |
 | Vite | FastAPI |
@@ -49,9 +49,7 @@ Many people want to understand how expressions are interpreted, but most tools o
 | CSS | SQLAlchemy |
 | Browser Camera API | PostgreSQL-compatible async database support |
 | sessionStorage for temporary session tracking | JWT + bcrypt-based authentication flow |
-
-| AI and Vision | AI Feedback |
-|---|---|
+| **AI and Vision** | **AI Feedback** |
 | PyTorch | Groq API |
 | TorchVision | OpenAI-compatible client patterns |
 | OpenCV | HTTP-based integration for coaching responses |
