@@ -2,7 +2,7 @@
 
 Practice the expression. Feel the difference.
 
-FaceCue is an interactive facial-expression practice app that helps users learn, compare, and improve their expressions using AI-powered emotion analysis and personalized feedback.
+FaceCue makes facial-expression practice more accessible for individuals with ADHD through a free, AI-powered learning experience designed around independent practice, without the pressure of real-time social interaction.
 
 <p align="center">
   <img src="./screenshot/Screenshot%202026-10-11%20170628.png" alt="FaceCue website preview" width="920" />
@@ -10,11 +10,11 @@ FaceCue is an interactive facial-expression practice app that helps users learn,
 
 ## Overview
 
-FaceCue helps users practice recognizing and producing facial expressions by combining image analysis, emotion prediction, and guided coaching. The app is designed for learning and experimentation, with an emphasis on feedback and repeated attempts rather than diagnosis.
+FaceCue is an AI-powered facial-expression training app designed primarily for individuals with ADHD who want to practice expressing emotions in a comfortable, self-paced environment. By combining facial landmark detection, emotion recognition, and personalized AI coaching, FaceCue helps users compare their expressions with a target emotion, understand the differences, and practice improving through repeated attempts. The focus is on learning and confidence, not diagnosis.
 
 ## Why FaceCue?
 
-Many people want to understand how expressions are interpreted, but most tools only tell them the result without actionable guidance. FaceCue bridges that gap by pairing prediction with coaching feedback, making it easier to compare the target expression with the observed one.
+For individuals who experience challenges with non-verbal communication, practicing facial expressions can be difficult without accessible guidance and opportunities for repetition. Most emotion recognition tools simply identify an expression without explaining how to adjust it. FaceCue bridges this gap by combining emotion analysis with actionable, personalized feedback, helping users understand which aspects of their expression align with the target and what they can practice next — all in a pressure-free learning environment.
 
 ## Key Features
 
@@ -104,16 +104,6 @@ Create a local `.env` file from the example:
 cp .env.example .env
 ```
 
-Then add values like:
-
-```env
-GROQ_API_KEY=your_groq_api_key
-MASTER_PROMPT=your_coaching_system_prompt
-DATABASE_URL=postgresql://user:password@localhost:5432/facecue
-JWT_SECRET_KEY=your_secure_random_secret
-GOOGLE_CLIENT_ID=your_google_client_id
-```
-
 ### 3) Install backend dependencies
 
 ```bash
@@ -134,26 +124,6 @@ Start the API:
 
 ```bash
 uvicorn wsgi:app --reload --host 127.0.0.1 --port 8000
-```
-
-Set the frontend API base URL in a root `.env.local` file:
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000
-```
-
-Then start Vite:
-
-```bash
-npm run dev
-```
-
-Open the local URL shown by Vite, usually `http://localhost:5173`.
-
-### 6) Production build
-
-```bash
-npm run build
 ```
 
 ## API Overview
