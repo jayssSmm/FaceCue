@@ -41,35 +41,24 @@ Many people want to understand how expressions are interpreted, but most tools o
   <img src="./screenshot/Tech-Stack.png" alt="FaceCue tech stack diagram" width="760" />
 </p>
 
-### Frontend
-- React
-- Vite
-- JavaScript
-- CSS
-- Browser Camera API
-- sessionStorage for temporary session tracking
+| Frontend | Backend |
+|---|---|
+| React | Python |
+| Vite | FastAPI |
+| JavaScript | Uvicorn |
+| CSS | SQLAlchemy |
+| Browser Camera API | PostgreSQL-compatible async database support |
+| sessionStorage for temporary session tracking | JWT + bcrypt-based authentication flow |
 
-### Backend
-- Python
-- FastAPI
-- Uvicorn
-- SQLAlchemy
-- PostgreSQL-compatible async database support
-- JWT + bcrypt-based authentication flow
-
-### AI and Vision
-- PyTorch
-- TorchVision
-- OpenCV
-- MediaPipe Face Landmarker
-- scikit-image
-- NumPy
-- DDAMFN++ emotion classification model
-
-### AI Feedback
-- Groq API
-- OpenAI-compatible client patterns
-- HTTP-based integration for coaching responses
+| AI and Vision | AI Feedback |
+|---|---|
+| PyTorch | Groq API |
+| TorchVision | OpenAI-compatible client patterns |
+| OpenCV | HTTP-based integration for coaching responses |
+| MediaPipe Face Landmarker | |
+| scikit-image | |
+| NumPy | |
+| DDAMFN++ emotion classification model | |
 
 ## Quick Start
 
