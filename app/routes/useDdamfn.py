@@ -72,7 +72,7 @@ async def predict_emotion(image: UploadFile = File(...)):
         "all_probs": result["all_probs"],
     }
 
-@router.route("/health", methods=['GET', 'HEAD'])
+@router.api_route("/health", methods=['GET', 'HEAD'])
 async def health():
     return {"status": "ok"}
 
